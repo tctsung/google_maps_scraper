@@ -5,8 +5,10 @@ import argparse
 import sys
 
 
-def run_scraper(search_content):
-    os.system(f'python main.py -s="{search_content.strip()}" -t=200')
+def run_scraper(search_content, total, dir_name):
+    os.system(
+        f'python main.py -s="{search_content.strip()}" -t={total} -o="{dir_name}"'
+    )
 
 
 def main():  # eg. python parallel_main.py -s="boutique" -c="New York"
@@ -15,9 +17,13 @@ def main():  # eg. python parallel_main.py -s="boutique" -c="New York"
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--search", type=str)  # search keyword
     parser.add_argument("-c", "--city", type=str)  # city
+    parser.add_argument("-t", "--total", type=int)  # no. of data
     parser.add_argument("-i", "--state_id", type=str)  # state ID
     args = parser.parse_args()
-
+    if args.total:
+        total = args.total
+    else:
+        total = 3
     # collect zip code:
     zip_code = uszips.copy()  # buffer for zip code in google search input
     zip_code["state_id"] = zip_code["state_id"].str.lower()
@@ -51,15 +57,14 @@ def main():  # eg. python parallel_main.py -s="boutique" -c="New York"
     inputs = []
     for index, row in zip_code.iterrows():
         search_input = f"{row['state_name']} {row['city']} {row['zip']} {search_for}"
-        inputs.append(search_input)
-
+        inputs.append((search_input, total, row["state_name"] + "/" + row["city"]))
     # Number of processes to run in parallel (adjust as needed)
     num_processes = multiprocessing.cpu_count() // 2
 
     # Create a pool of processes
     with multiprocessing.Pool(processes=num_processes) as pool:
         # Map the run_scraper function to the list of zipcodes
-        pool.map(run_scraper, inputs)
+        pool.starmap(run_scraper, inputs)
 
 
 if __name__ == "__main__":

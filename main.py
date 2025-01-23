@@ -9,6 +9,7 @@ import os
 import sys
 import datetime
 from tqdm import tqdm
+import os
 
 
 @dataclass
@@ -48,16 +49,21 @@ class BusinessList:
             (asdict(business) for business in self.business_list), sep="_"
         )
 
+    def ensure_directory_exists(self, filepath):
+        """Ensures the directory of the given file path exists."""
+        directory = os.path.dirname(filepath)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+
     def save_to_excel(self, filename):
         """saves pandas dataframe to excel (xlsx) file
 
         Args:
             filename (str): filename
         """
-
-        if not os.path.exists(self.save_at):
-            os.makedirs(self.save_at)
-        self.dataframe().to_excel(f"output/{filename}.xlsx", index=False)
+        file_path = f"output/{filename}.xlsx"
+        self.ensure_directory_exists(file_path)
+        self.dataframe().to_excel(file_path, index=False)
 
     def save_to_csv(self, filename):
         """saves pandas dataframe to csv file
@@ -65,10 +71,9 @@ class BusinessList:
         Args:
             filename (str): filename
         """
-
-        if not os.path.exists(self.save_at):
-            os.makedirs(self.save_at)
-        self.dataframe().to_csv(f"output/{filename}.csv", index=False)
+        file_path = f"output/{filename}.csv"
+        self.ensure_directory_exists(file_path)
+        self.dataframe().to_csv(file_path, index=False)
 
 
 # def extract_coordinates_from_url(url: str) -> tuple[float, float]:
@@ -88,25 +93,22 @@ def main():  # python main.py -s="new york 10003 boutique" -t=10
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--search", type=str)  # search keyword
     parser.add_argument("-t", "--total", type=int)  # no. of business
+    parser.add_argument("-o", "--output_dir", type=str)
     args = parser.parse_args()
     today_date = str(datetime.datetime.now().strftime("%Y_%m_%d"))
-    search_for = args.search
+
     # total number of products to scrape. Default is 10
     if not args.search:
         print("Error occured: You must pass the -s search argument")
         sys.exit()
+    if not args.output_dir:
+        output_dir = ""
     if args.total:
         total = args.total
     else:
-        total = 1_000_000
-
-    # read search from arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--search", type=str)
-    parser.add_argument("-t", "--total", type=int)
-    args = parser.parse_args()
+        total = 3
     search_for = args.search
-    total = args.total
+    output_dir = args.output_dir
 
     ##################
     ## Web-scraping ##
@@ -270,15 +272,12 @@ def main():  # python main.py -s="new york 10003 boutique" -t=10
         #########
         # output
         #########
-        business_list.save_to_excel(
-            f"google_maps_data_{search_for}_{today_date}".replace(" ", "_")
-        )
-        business_list.save_to_csv(
-            f"google_maps_data_{search_for}_{today_date}".replace(" ", "_")
-        )
+        filename = f"{output_dir}/{search_for}_{today_date}".replace(" ", "_")
+        business_list.save_to_excel(filename)
+        business_list.save_to_csv(filename)
         browser.close()
         print(
-            f"Finish scrapping for {args.search} at {datetime.datetime.now()}, time spent: {(datetime.datetime.now() - start_time).seconds/60} minutes"
+            f"Finish scrapping for {args.search} at {datetime.datetime.now()}\nFile location: {filename}\ntime spent: {(datetime.datetime.now() - start_time).seconds/60} minutes"
         )
 
 
